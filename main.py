@@ -3,6 +3,12 @@ from discord import app_commands
 import logging
 import datetime
 import json
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+
+sns.set_theme()
 
 intents = discord.Intents.default()
 intents.members = True
@@ -21,35 +27,51 @@ async def on_ready():
 
 @tree.command(name="monthly", description="月次レポートを作成します。")
 @app_commands.describe(year="対象年", month="対象月")
-async def GenerateMonthlyReport(interaction:discord.Interaction, year:RANGE_YEAR, month:RANGE_MONTH):
+async def generate_monthly_report(interaction:discord.Interaction, year:RANGE_YEAR, month:RANGE_MONTH):
     guild = interaction.guild
     channels = guild.text_channels
     after = datetime.datetime(year, month, 1)
     before = datetime.datetime(year, month + 1, 1)
-    embed = discord.Embed(title="あ？", description=f"{year}年 {month}月")
+    embed = discord.Embed(title="あ！", description=f"{year}年 {month}月")
     await interaction.response.send_message(embed=embed)
 
-    obj = dict()
-    date = list()
-    member = list()
-    channel = list()
-    content = list()
+    obj = list()
+    # date = list()
+    # member = list()
+    # channel = list()
+    # content = list()
 
     for chl in channels:
         async for message in chl.history(before=before, after=after):
-            date.append(message.created_at)
-            member.append(message.author.name)
-            channel.append(message.channel.name)
-            content.append(message.content)
+            msg = dict()
+            if not message.author.bot:
+                msg["date"] = message.created_at.strftime("%Y/%m/%d %H:%M:%S")
+                msg["author"] = message.author.name
+                msg["channel"] = message.channel.name
+                msg["content"] = message.content
+                obj.append(msg)
+
+            # date.append(message.created_at.strftime("%Y/%m/%d %H:%M:%S"))
+            # member.append(message.author.name)
+            # channel.append(message.channel.name)
+            # content.append(message.content)
     
-    obj["date"] = date
-    obj["member"] = member
-    obj["channel"] = channel
-    obj["content"] = content
+    # obj["date"] = date
+    # obj["member"] = member
+    
     dump(obj)
+    # sns.lineplot(data=obj)
+    # plt.savefig(get_now_datetime_txt() + ".png")
+    # plt.show()
 
 
 def dump(obj):
+    filename = get_now_datetime_txt()
+    with open(f'./output/{filename}.json', 'w') as f:
+        json.dump(obj, f, indent=2)
+
+
+def get_now_datetime_txt():
     now = datetime.datetime.now()
     year = str(now.year).zfill(4)
     month = str(now.month).zfill(2)
@@ -57,9 +79,9 @@ def dump(obj):
     hour = str(now.hour).zfill(2)
     minute = str(now.minute).zfill(2)
     second = str(now.second).zfill(2)
-    filename = year + '-' + month + '-' + day + ' ' + hour + '-' + minute + '-' + second
-    with open(f'./output/{filename}.json', 'w') as f:
-        json.dump(obj, f, indent=2)
+    datetime_txt = year + '-' + month + '-' + day + ' ' + hour + '-' + minute + '-' + second
+    return datetime_txt
+
 
 
 handler = logging.FileHandler(filename="discord.log", encoding="utf-8", mode="w")
